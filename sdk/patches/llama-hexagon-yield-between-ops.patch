@@ -1,0 +1,48 @@
+diff --git a/ggml/src/ggml-hexagon/htp/main.c b/ggml/src/ggml-hexagon/htp/main.c
+index f7e3301..325f9ed 100644
+--- a/ggml/src/ggml-hexagon/htp/main.c
++++ b/ggml/src/ggml-hexagon/htp/main.c
+@@ -1225,6 +1225,32 @@ static int proc_op_req(struct htp_ops_context * octx, struct htp_buf_desc * bufs
+     return octx->status;
+ }
+ 
++// geniex: hand VTCM and HMX to a client that asked for them, without waiting
++// for the end of the batch. A batch can be a whole graph, and a client with a
++// deadline (e.g. a functional-safety self-test that the host treats as a fatal
++// DSP fault when it times out) cannot wait that long. VTCM only holds per-op
++// scratch, so yielding between ops is safe.
++static void vtcm_yield(struct htp_context * ctx) {
++    if (!ctx->vtcm_needs_release) {
++        return;
++    }
++
++    // The hmx-queue thread holds the HMX lock and the workers spin while active
++    if (ctx->hmx_queue) {
++        hmx_queue_suspend(ctx->hmx_queue);
++        hmx_queue_flush(ctx->hmx_queue);
++    }
++    work_queue_suspend(ctx->work_queue);
++
++    vtcm_release(ctx);
++    vtcm_acquire(ctx);
++
++    work_queue_wakeup(ctx->work_queue);
++    if (ctx->hmx_queue) {
++        hmx_queue_wakeup(ctx->hmx_queue);
++    }
++}
++
+ static void process_opbatch(struct htp_context * ctx, const struct htp_opbatch_req * req, const struct dspqueue_buffer * dbuf) {
+     dspqueue_t queue = ctx->dsp_queue;
+     int err;
+@@ -1314,6 +1340,10 @@ static void process_opbatch(struct htp_context * ctx, const struct htp_opbatch_r
+                 pds[i].pmu[j] = prof.pmu_counters[j];
+             }
+         }
++
++        if (i + 1 < n_ops) {
++            vtcm_yield(ctx);
++        }
+     }
+ 
+     if (ctx->hmx_queue) {

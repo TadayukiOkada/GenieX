@@ -177,6 +177,11 @@ enable_testing()
 #   next lower ones, and lets g++ before 13 compile the CPU-side library
 #   (no _Float16 in C++). Skels built against SDK 6.x headers import
 #   compute_resource_attr_init_v2, which such firmware does not export.
+# * llama-hexagon-yield-between-ops.patch is a permanent GenieX addition that
+#   makes the HTP skel honor a VTCM/HMX release request between ops instead of
+#   only between op batches. A batch can be a whole graph, so a long prefill
+#   kept both resources for its full duration; on functional-safety firmware
+#   the periodic DSP self-test then times out and the host shuts the DSP down.
 # * llama-opencl-adreno-cpy-constreg.patch works around an Adreno OpenCL
 #   compiler crash: kernel_cpy_f32_f32_pack's min(ne00, get_local_size(0))
 #   emits an IMINrr with two constant-class operands, which the driver's
@@ -203,7 +208,8 @@ if(GENIEX_PLUGIN_LLAMA_CPP)
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-release-sessions.patch"
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-power-mode.patch"
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-power-mode-setter.patch"
-            "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-sdk-select.patch")
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-sdk-select.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-yield-between-ops.patch")
     endif()
     if(GGML_OPENCL)
         list(APPEND _LLAMA_PATCHES
