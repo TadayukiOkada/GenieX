@@ -182,6 +182,8 @@ enable_testing()
 #   only between op batches. A batch can be a whole graph, so a long prefill
 #   kept both resources for its full duration; on functional-safety firmware
 #   the periodic DSP self-test then times out and the host shuts the DSP down.
+#   It also splits non-contiguous copies into 128 KiB chunks and yields between
+#   them: one transposed copy in a vision encoder takes about 70 ms.
 # * llama-opencl-adreno-cpy-constreg.patch works around an Adreno OpenCL
 #   compiler crash: kernel_cpy_f32_f32_pack's min(ne00, get_local_size(0))
 #   emits an IMINrr with two constant-class operands, which the driver's
