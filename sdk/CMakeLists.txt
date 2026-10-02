@@ -184,6 +184,11 @@ enable_testing()
 #   the periodic DSP self-test then times out and the host shuts the DSP down.
 #   It also splits non-contiguous copies into 128 KiB chunks and yields between
 #   them: one transposed copy in a vision encoder takes about 70 ms.
+# * llama-hexagon-hmx-pad-k.patch lets the flat 2D HMX matmul take F16/F32
+#   weights whose K is not a multiple of 32 by padding K with zeros. Without it
+#   they fall back to HVX: the SigLIP so400m FFN down projection (K = 4304)
+#   takes about 100 ms per op instead of 3 ms, long enough to trip the
+#   functional-safety self-test above.
 # * llama-opencl-adreno-cpy-constreg.patch works around an Adreno OpenCL
 #   compiler crash: kernel_cpy_f32_f32_pack's min(ne00, get_local_size(0))
 #   emits an IMINrr with two constant-class operands, which the driver's
@@ -211,7 +216,8 @@ if(GENIEX_PLUGIN_LLAMA_CPP)
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-power-mode.patch"
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-power-mode-setter.patch"
             "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-sdk-select.patch"
-            "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-yield-between-ops.patch")
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-yield-between-ops.patch"
+            "${CMAKE_CURRENT_SOURCE_DIR}/patches/llama-hexagon-hmx-pad-k.patch")
     endif()
     if(GGML_OPENCL)
         list(APPEND _LLAMA_PATCHES
